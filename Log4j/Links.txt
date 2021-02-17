@@ -1,0 +1,11 @@
+https://logging.apache.org/log4j/log4j-2.4/manual/configuration.html#Additivity
+
+https://www.studytonight.com/post/log4j2-configuration-using-properties-file#
+
+https://examples.javacodegeeks.com/enterprise-java/log4j/log4j-2-rollingfileappender-example/
+
+https://stackoverflow.com/questions/46360848/very-simple-log4j2-properties-configuration-file-using-console-and-rolling-file
+
+https://dzone.com/articles/log4j-2-configuration-using-properties-file
+
+https://logging.apache.org/log4j/log4j-2.4/manual/appenders.html#RoutingAppender
