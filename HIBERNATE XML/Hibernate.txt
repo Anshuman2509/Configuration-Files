@@ -1,0 +1,544 @@
+@JoinTable
+
+@JoinTable Used in the mapping of associations. It is specified on the owning side of an association.
+@JoinTable can be used with embeddable types as well.
+When a join table is used in mapping a relationship with an embeddable class on the owning side of the relationship, the containing entity rather than the embeddable class is considered the owner of the relationship.
+
+==============================================================
+
+mappedby signifies that the mapping is being handled by the other class.
+MappedBy signals hibernate that the key for the relationship is on the other side.
+
+This means that although you link 2 tables together, only 1 of those tables has a foreign key constraint to the other one. MappedBy allows you to still link from the table not containing the constraint to the other table.
+
+mappedby="object of entity of same class created in another class”
+Note:-Mapped by can be used only in one class because one table must contain foreign key constraint. if mapped by can be applied on both side then it remove foreign key from both table and without foreign key there is no relation between two tables.
+Note:- It can be use for following annotations:- 1.@OneTone 2.@OneToMany 3.@ManyToMany
+Note:- It cannot be use for following annotation :- 1.@ManyToOne
+In one to one :- Perform at any side of mapping but perform at only one side . It will remove the extra column of foreign key constraint on the table on which class it is applied.
+For eg . If we apply mapped by in Employee class on employee object then foreign key from Employee table will be removed.
+
+https://stackoverflow.com/questions/9108224/can-someone-explain-mappedby-in-jpa-and-hibernate
+==============================================================
+Generation Strategies:
+Sequence- releies on database sequence to create new primary keys.In this case an extra table hibernate_sequence is created and nextval() is used to generated next identifiers.
+Identity- relies on the auto-incremented database column and lets tha database generate a new value with each insert operation. This means auto_increment is used for PK column.
+student_id INT NOT NULL AUTO_INCREMENT
+Table- In the case of GenerationType.TABLE the column values is filled by a table. This will be separate table.
+public class EduCourse {
+@Id
+@GeneratedValue(strategy=GenerationType.TABLE, generator="course")
+@TableGenerator(
+name="course",
+table="GENERATOR_TABLE",
+pkColumnName = "key",
+valueColumnName = "next",
+pkColumnValue="course",
+allocationSize=30
+)
+private int id;
+}
+
+==============================================================
+EMBEDDABLE OBJECT
+@Embeddable
+public class Address {}
+
+The embeddable Object column names can also be changed through @Column notation.
+=============================================================================
+OVERRIDING EMBEDDABLE OBJECT PROPERTIES
+In case you want to change the column name of embeddable object in the Associative class(class which has the embedabble class as property)
+@AttributeOverrides({
+@AttributeOverride(name = "state",column = @Column(name="state_new")),
+@AttributeOverride(name="city",column = @Column(name="city_new"))
+})
+private Address address;
+
+THE ADDRESS CLASS SHOULD BE MARKED AS EMBEDDABLE.
+@Embeddable
+public class Address {}
+=============================================================================
+MAPPING COLLECTIONS
+
+@ElementCollection
+@JoinTable(name = "user_address",joinColumns = @JoinColumn(name="user_id"))
+@GenericGenerator(name="myGenerator",strategy = "increment")
+@CollectionId(generator = "myGenerator",columns = @Column(name="address_id"),type = @Type(type = "long"))
+private List<Address> addresses;
+
+@Embeddable
+public class Address {}
+
+@GenericGenerator and @CollectionId are only Hibernate specific annotations and are not JPA sepcifications. The intention of the tags is to generate a primary key for the table that is created for mapping collections. Also this will only with collection that support indexes(arraylist) and will not work with collections that do not support indexes(set).
+=============================================================================
+PROXY OBJECTS AND EAGER AND LAZY FETCH TYPES
+@ElementCollection(fetch = FetchType.EAGER)
+@JoinTable(name = "user_address",joinColumns = @JoinColumn(name="user_id"))
+private List<Address> addresses;
+
+-------------
+Session session2=factory.openSession();
+Employee employee=session2.get(Employee.class, 1);
+session2.close();
+System.out.println(employee.getAddresses().size());
+----------------
+In this case Employee class has a list of Address objects. When we use session2.get(Employee.class, 1);, hibernate creates  proxy class internall which is the copy of Employee class. In case of lazy initialization, the address list are not fetched by default. It will only be fetched when we use employee.getAddresses().
+But in case of eager initialization, the address values are fetched when we use session2.get(Employee.class, 1).
+
+
+session2.close();
+System.out.println(employee.getAddresses().size()); This statement will throw an error in case of Lazy loading.
+
+=============================================================================
+ONETOONE 
+Unidirectional:
+Here only address property is present in Employee class only.
+In Employee table:
+@OneToOne
+@JoinColumn(name="address_id")
+private Address address;
+
+In this case the FK of Address table is present in Employee table only.
+BIDIRECTIONAL
+In this case, the address property is present in Employee table and employee property is present in Address table.
+@OneToOne
+@JoinColumn(name="address_id")
+private Address address;
+
+@OneToOne
+@JoinColumn(name = "emp_Id")
+private Employee employee;
+
+In this case, FK of Address is created in Employee table and FK of Employee is created in Address table.
+MAPPED BY
+@OneToOne
+@JoinColumn(name="address_id")
+private Address address;
+
+@OneToOne(mappedBy = "address")
+@JoinColumn(name = "emp_Id")
+private Employee employee;
+
+In this case, the FK of Address is created in Employee table, but the FK of Employee is not created in Address table.
+It is being mapped by the FK of Address in Employee table.
+=============================================================================
+ONETOMANY
+
+Unidirectional
+Here only vehicle property is present in Employee class only.
+In Employee class:
+@OneToMany
+@JoinTable(name="user_vehicle",joinColumns = @JoinColumn(name="user_id"),inverseJoinColumns = @JoinColumn(name="vehicle_id"))
+private Vehicle vehicle;
+
+In this case, 3 tables are created of which a new table user_vehicle is created having the required PK mapping from both the tables. Remember here no extra column is created in the Vehicle table, but as we will see below a new column will be created if @ManyToOne mapping is used in Vehicle class.
+
+Bidirectional
+In Employee class:
+@OneToMany
+@JoinTable(name="user_vehicle",joinColumns = @JoinColumn(name="user_id"),inverseJoinColumns = @JoinColumn(name="vehicle_id"))
+private List<Vehicle> vehicles;
+
+In Vehicle class:
+@ManyToOne
+private Employee employee;
+
+In this case, 3 tablesa are created of which a new table user_vehicle is created having the required PK mapping from both the tables. Also a new column employee_empid is created in Vehicle table having the FK of Employees.
+Logic: Employee table cannot have a FK referece in it,as 1 Employee can have many vehicles, but a Vehicle table can have reference to Employee as a Vehicle belongs to only one Employee, hence a new column is created in the table mapped with @ManyToOne annotation(Vehicle) which contains the FK to Employee table.
+
+NAMING THE JOIN COLUMN IN MANYTOONE CLASS
+Since a new foreign key column is created when we use @ManyToOne annotation in Vehicle class, we can also name the column as per requirement:
+@ManyToOne
+@JoinColumn(name="employee_id")
+private Employee employee;
+
+MAPPED BY
+In the bidirectional relationship we saw that a new FK column is created in Vehicle class i.e. class having @ManyToOne annotation. This is created along with the creation of a new table which has the mapping of PKs of both Vehicle and Employee class.
+Now with mappedBy, we are telling Hibernate to not create a new table for mapping, instead use the foreign key column in Vehicle table(in table having @ManyToOne annotation) for mapping.
+In Employee class:
+@OneToMany(mappedBy = "employee")
+private List<Vehicle> vehicles;
+
+In Vehicle class:
+@ManyToOne
+@JoinColumn(name="employee_id")
+private Employee employee;
+
+Here only two tables- Employee and Address are created. The vehicle table contains the mapping of FK of employee id.
+=============================================================================
+MANYTOMANY
+Unidirectional
+Here only vehicle property is present in Employee class only.
+@ManyToMany
+@JoinTable(name="emp_veh",joinColumns = @JoinColumn(name="empid"),inverseJoinColumns = @JoinColumn(name="veh_id"))
+private List<Vehicle> vehicles;
+
+In this case , only 3 tables are created- emp table, veh table and emp_veh table.
+
+BiDirectional
+The simplest way is to annotate @ManyToMany in both the class properties.
+
+In Employee class:
+@ManyToMany
+@JoinTable(name="emp_veh",joinColumns = @JoinColumn(name="empid"),inverseJoinColumns = @JoinColumn(name="veh_id"))
+private List<Vehicle> vehicles;
+In Vehicle class:
+@ManyToMany
+@JoinTable(name="veh_emp",joinColumns = @JoinColumn(name="vehid"),inverseJoinColumns = @JoinColumn(name="empid"))
+private List<Employee> employees;
+
+Here 4 tables are created, emp table, veh table, emp_veh table and veh_emp table. emp_veh and veh_emp basically contains the mapping of the PKs of Employee and Vehicle objects and are exactly  the same.
+
+MAPPEDBY
+We saw that 2 join tables are created if we use @ManyToMany in both the tables, so to tell Hibernate to create only one join table we can user @MappedBy annotation on one of the tables.
+In Employee class:
+@ManyToMany
+@JoinTable(name="emp_veh",joinColumns = @JoinColumn(name="empid"),inverseJoinColumns = @JoinColumn(name="veh_id"))
+private List<Vehicle> vehicles;
+In Vehicle class:
+@ManyToMany(mappedBy = "vehicles")
+private List<Employee> employees;
+
+In this case , only 3 tables are created- emp table, veh table and emp_veh table.
+
+=============================================================================
+CASCADE TYPES:
+
+For example. lets consider the @OneToMany uidirectional relationship:
+In Employee class:
+@OneToMany
+@JoinTable(name="user_vehicle",joinColumns = @JoinColumn(name="user_id"),inverseJoinColumns = @JoinColumn(name="vehicle_id"))
+private List<Vehicle> vehicles;
+
+Here in the above case , we have to save both the Employee as well as Vehicle objects. If we only save Employee object, Hibernate will not automatically save the related Vehicle objects considiring that employee has vehicle references.
+session.save(vehicle);
+session.save(vehicle2);
+session.save(employee);
+
+@OneToMany(cascade=CascadeType.PERSIST)
+@JoinTable(name="user_vehicle",joinColumns = @JoinColumn(name="user_id"),inverseJoinColumns = @JoinColumn(name="vehicle_id"))
+private List<Vehicle> vehicles;
+Here also change session.save(employee) to session.persist(employee).
+cascade=CascadeType.PERSIST = This tells Hibernate that when employee object is being saved through session.persist(employee), go ahead and save the related vehicle objects. There is not need to specifically mentioned session.save(vehicle) for any vehicle objects used in List<Vehicle> vehicles property.
+
+
+
+=============================================================================
+INHERITANCE
+SINGLE TABLE STRATEGY
+We have 3 classes:
+@Entity
+@Inheritance(strategy = InheritanceType.SINGLE_TABLE)
+@DiscriminatorColumn(name = "employee_type",discriminatorType = DiscriminatorType.STRING)
+@DiscriminatorValue(value = "employee")
+public class Employee {
+----
+@Entity
+@DiscriminatorValue(value = "regular")
+public class Regular_Employee extends Employee{
+----
+@Entity
+@DiscriminatorValue(value = "contract")
+public class Contract_Employee extends Employee{
+----
+In this case a single table of Employee is created with the following columns:
+employee_type	
+id
+name
+bonus
+salary
+contractPeriod
+payPerHour
+The values of the columns are filled as per the Class selected.
+=============================================================================
+TABLE PER CLASS STRATEGY
+In this case, IDENTITY PK generation strategy will not work as DB will look for a Generator for each Entity.
+@Entity
+@Inheritance(strategy = InheritanceType.TABLE_PER_CLASS)
+public class Employee {}
+----
+@Entity
+public class Regular_Employee extends Employee{}
+----
+@Entity
+public class Contract_Employee extends Employee{}
+
+In this case three tables are created.
+employee:
+id
+name
+regular_employee:
+id
+name
+bonus
+salary
+contract_employee:
+id
+name
+contractPeriod
+parPerHour
+
+=============================================================================
+JOIN STRATEGY
+In this case, the columns of the parent class(excpet the PK) will only be created in the parent table. And the columns specific to child classess will be created repectivley.
+
+@Entity
+@Inheritance(strategy = InheritanceType.JOINED)
+public class Employee {}
+----
+@Entity
+public class Contract_Employee extends Employee{}
+----
+@Entity
+public class Regular_Employee extends Employee{}
+----
+In this case three tables will be created:
+emp:
+id
+name
+regular_employee:
+id
+bonus
+salary
+contract_employee:
+id
+contractPeriod
+parPerHour
+
+Here mark that name is not created in the child tables, it is only created in the parent table. 
+============================================================================
+CRUD
+
+//Create
+session.save(employee);
+session.save(employee2);
+transaction.commit();
+session.close();
+
+//Get
+Session session2=factory.openSession();
+Employee employee3=session2.get(Employee.class, 1002);
+System.out.println(employee3);
+
+//Update
+Employee employee4=session2.get(Employee.class, 1001);
+employee4.setName("Jack Ryan New");
+Transaction transaction2=session2.beginTransaction();
+session2.update(employee4); // check for persisted state and update
+transaction2.commit();
+
+//Delete
+Employee employee5=session2.get(Employee.class, 1002);
+Transaction transaction3=session2.beginTransaction();
+session2.delete(employee5);
+transaction3.commit();
+
+=============================================================================
+TRANSIENT,PERSISTENT AND DETACHED OBJECTS
+Employee employee=new Employee();
+employee.setName("Jack Ryan");
+
+If session.save(employee) is not called,then employee is called as Transient object.
+When session.save(employee) is used, then the employee object becomes a persisted object and the object is tracked by Hibernate for any changes/updates.
+session.close is used, then employee becomes a detached object which means Hibernate is not going to track the changes in the Emp object.
+
+
+REMEMBER ANY CHANGES DONE TO THE OBJECT BETWEEN SESSION.SAVE() AND SESSION.CLOSE() METHOD, IT IS AUTOMATICALLY GOING TO BE PERSISTED.
+------------------
+Session session=factory.openSession();
+Transaction transaction=session.beginTransaction();
+
+Employee employee=new Employee();
+employee.setId(1001);
+employee.setName("Jack Ryan");
+
+session.save(employee);
+
+employee.setName("Ethan Hunt");
+employee.setName("Ethan Hunt New");
+transaction.commit();
+session.close();
+
+In this case "Ehtan Hunt New" is saved in empName. After the session.save() and before transaction.commit() and session.close(), any statement will be considered as an update statement.
+Also only one insert statement is fired as Hibernate inteligently checks what update to consider.
+=============================================================================
+STATE CHANGES
+Transient -> Persistent -> Detached
+
+CREATE
+Transient -> Persistent -> Detached
+new Employee() -> session.save(employee) -> session.close()
+
+READ
+Persistent -> Detached
+get(Employee.class,1) -> session.close()
+
+UPDATE- It can have 2 cases:
+CASE 1:
+Transient -> Persistent -> Detached
+new Employee() -> session.save(employee) -> session.close()
+CASE 2:
+Persistent -> Detached
+get(Employee.class,1) -> session.close()
+
+DELETE
+Transient -< Persistent ->Detached
+session.delete()    BLANK  session.close()
+=============================================================================
+PERSISTING DETACHED OBJECTS
+@SelectBeforeUpdate
+-------
+
+SessionFactory factory=configuration.buildSessionFactory();
+Session session=factory.openSession();
+Employee employee=session.get(Employee.class, 1004);
+session.close();
+System.out.println(employee);
+
+Session session2=factory.openSession();
+Transaction transaction=session2.beginTransaction();
+session2.update(employee);
+
+transaction.commit();
+session2.close();
+----
+Hibernate: update Employee set name=? where id=?
+In the above case even two sessions are created. Even tough no changes have been made to the employee object a backend update query is executed by Hibernate.
+------------------------------------------
+In order to avoid @SelectBeforeUpdate is used. It forces Hibernate to first do a select and then update. If no changes are there , then donot update.Tell Hibernate to only fire an update query if and only if the user object has changed. If the object has not been update, then just bring the object back into persistent state.
+@Entity
+@SelectBeforeUpdate
+public class Employee {}
+
+----
+Hibernate: select employee_.id, employee_.name as name3_0_ from Employee employee_ where employee_.id=?
+@SelectBeforeUpdate is a Hibernate annotation.
+=============================================================================
+HQL AND QUERY OBJECT
+
+Query<Employee> query=session.createQuery("from Employee");
+List<Employee> employees=query.list();
+
+Query<Employee> query=session.createQuery("from Employee where name='Jack Ryan'");
+Employee employee=query.getSingleResult();
+System.out.println(employee);
+
+Pagination:
+Query<Employee> query=session.createQuery("from Employee");
+query.setFirstResult(2); // start from nth record
+query.setMaxResults(2); // from nth record show 2 no. of records
+List<Employee> employees=query.list();
+      
+Parameterized Queries:
+Query<Employee> query=session.createQuery("from Employee where id=?1");
+query.setParameter(1, 1004);
+Employee employee=query.getSingleResult();
+
+Query<Employee> query=session.createQuery("from Employee where id=:kia");
+query.setParameter("kia", 1004);
+Employee employee=query.getSingleResult();
+
+Named Queries:
+@NamedQuery is used for HQL and @NamedNativeQuery is used for SQL.
+@Entity
+@NamedQuery(name = "abc",query = "from Employee")
+@NamedNativeQuery(name="def",query = "select * from employee where id=1004",resultClass = Employee.class)
+public class Employee {}
+--------
+Query<Employee> query=session.getNamedQuery("abc");
+List<Employee> employees=query.list();
+System.out.println(employees);
+		
+Query<Employee> query2=session.getNamedQuery("def");
+Employee employee=query2.getSingleResult();
+System.out.println(employee);
+=============================================================================
+CRITERIA API
+
+CriteriaBuilder builder=session.getCriteriaBuilder();
+CriteriaQuery<Employee> query=builder.createQuery(Employee.class);
+query.from(Employee.class);
+		
+List<Employee> employees=session.createQuery(query).getResultList();
+System.out.println(employees);
+----
+
+https://en.wikibooks.org/wiki/Java_Persistence/Criteria
+=============================================================================
+FIRST LEVEL CACHE
+
+SessionFactory factory=configuration.buildSessionFactory();
+Session session=factory.openSession();
+		
+Employee employee=session.get(Employee.class, 1001);
+Employee employee2=session.get(Employee.class, 1001);	
+session.close();
+
+
+In this case, only one select is fired as hibernate stores the result in cache.
+-----------------------
+Session session=factory.openSession();
+Employee employee=session.get(Employee.class, 1001);
+session.close();
+		
+session=factory.openSession();
+Employee employee2=session.get(Employee.class, 1001);	
+session.close();
+In this case, two select queries are fired as they are used in two different sessions.
+
+CONFIGURING SECOND LEVEL CACHE
+<property name="cache.use_second_level_cache">true</property>
+<property name="cache.provider_class">org.hibernate.cache.EhCacheProvider</property>
+
+Add the dependency to POM: The version should be same as the Hibernate version.
+<dependency>
+    <groupId>org.hibernate</groupId>
+    <artifactId>hibernate-ehcache</artifactId>
+    <version>5.4.20.Final</version>
+</dependency>
+
+@Entity
+@Cacheable
+@Cache(usage = CacheConcurrencyStrategy.READ_ONLY)
+public class Employee {}
+
+Session session=factory.openSession();
+Employee employee=session.get(Employee.class, 1001);
+session.close();
+		
+session=factory.openSession();
+Employee employee2=session.get(Employee.class, 1001);	
+session.close();
+
+Now in the above code only 1 select statement is fired even after closing the session as the result set is stored in cache.
+-----------------------
+QUERY CACHE
+This is done to cache the queries results.
+Session session=factory.openSession();
+Query<Employee> query=session.createQuery("from Employee");
+List<Employee> employees=query.list();
+session.close();
+		
+session=factory.openSession();
+Query<Employee> query1=session.createQuery("from Employee");
+List<Employee> employees1=query1.list();
+session.close();
+
+In the above case two select queries are executed.
+<property name="cache.use_query_cache">true</property>
+
+SessionFactory factory=configuration.buildSessionFactory();
+Session session=factory.openSession();
+Query<Employee> query=session.createQuery("from Employee");
+query.setCacheable(true);
+List<Employee> employees=query.list();
+session.close();
+
+session=factory.openSession();
+Query<Employee> query1=session.createQuery("from Employee");
+query1.setCacheable(true);
+List<Employee> employees1=query1.list();
+session.close();
+
+Now only 1 select statement is executed.
+===================================================================

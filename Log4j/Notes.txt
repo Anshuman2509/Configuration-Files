@@ -1,0 +1,47 @@
+Appender Additivity
+The output of a log statement of logger C will go to all the appenders in C and its ancestors. This is the meaning of the term "appender additivity".
+
+However, if an ancestor of logger C, say P, has the additivity flag set to false, then C's output will be directed to all the appenders in C and its ancestors upto and including P but not the appenders in any of the ancestors of P.
+
+Loggers have their additivity flag set to true by default.
+--------------------------------------
+log4j.logger.bmw=WARN,console
+log4j.logger.bmw.audi=WARN,console
+log4j.logger.merc=WARN,console
+
+OUTPUT
+2021-02-18 16:15:20,725 +0530 [main] WARN  (BMW.java:10) - bmw logs
+2021-02-18 16:15:20,725 +0530 [main] WARN  (BMW.java:10) - bmw logs
+2021-02-18 16:15:20,731 +0530 [main] WARN  (Merc.java:10) - merc logs
+2021-02-18 16:15:20,731 +0530 [main] WARN  (Merc.java:10) - merc logs
+2021-02-18 16:15:20,733 +0530 [main] WARN  (Audi.java:10) - Audi Logs
+
+CONCLUSION
+All the logs from merc and bmw are also flowing to root logger.Hence getting printed.
+--------------------------------------
+log4j.logger.bmw=WARN,console
+log4j.logger.bmw.audi=WARN,console
+log4j.logger.merc=WARN,console
+log4j.additivity.bmw=false
+
+OUTPUT
+2021-02-18 16:16:49,804 +0530 [main] WARN  (BMW.java:10) - bmw logs
+2021-02-18 16:16:49,808 +0530 [main] WARN  (Merc.java:10) - merc logs
+2021-02-18 16:16:49,808 +0530 [main] WARN  (Merc.java:10) - merc logs
+2021-02-18 16:16:49,810 +0530 [main] WARN  (Audi.java:10) - Audi Logs
+
+CONCLUSION
+Bmw logs didn't flow to root as it has been set to false, but merc logs did flow.
+--------------------------------------
+log4j.logger.bmw=WARN,console
+log4j.logger.bmw.audi=WARN,console
+log4j.logger.bmw.merc=WARN,console
+
+OUTPUT
+2021-02-18 16:20:06,968 +0530 [main] WARN  (BMW.java:10) - bmw logs
+2021-02-18 16:20:06,968 +0530 [main] WARN  (BMW.java:10) - bmw logs
+2021-02-18 16:20:06,971 +0530 [main] WARN  (Merc.java:10) - merc logs
+2021-02-18 16:20:06,973 +0530 [main] WARN  (Audi.java:10) - Audi Logs
+
+CONCLUSION
+merc is the child logger of bmw, but it printed only once as bmw logs itself are flowing into rootlogger.
